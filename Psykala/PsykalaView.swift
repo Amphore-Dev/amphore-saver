@@ -81,9 +81,7 @@ final class PsykalaView: ScreenSaverView {
         let scale = min(bounds.width, bounds.height) / 1280
         let screenSize = bounds.size
 
-        for layer in layers.reversed() {
-            layer.draw(in: ctx, screenSize: screenSize, scale: scale)
-        }
+        SceneRenderer.draw(layers, in: ctx, size: screenSize, scale: scale)
 
         let overlayAlpha = 1 - fadeOpacity
         if overlayAlpha > 0.001 {
@@ -107,7 +105,8 @@ final class PsykalaView: ScreenSaverView {
     }
 
     private func applyArtwork(_ artwork: ArtworkData) {
-        layers = artwork.layers.map { BaseLayer.make(from: $0) }
+        // Hidden layers (`visible: false`) are skipped by the factory
+        layers = artwork.layers.compactMap { BaseLayer.make(from: $0) }
 
         fadeStartTime = time
         fadeStartOpacity = 0

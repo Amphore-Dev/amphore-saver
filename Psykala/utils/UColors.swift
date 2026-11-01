@@ -1,12 +1,16 @@
 import AppKit
 
 extension CGColor {
+    /// Parses #RGB, #RGBA, #RRGGBB or #RRGGBBAA (white when invalid).
     static func fromHex(_ hex: String) -> CGColor {
         var h = hex.trimmingCharacters(in: .whitespaces)
         if h.hasPrefix("#") { h = String(h.dropFirst()) }
+        if h.count == 3 || h.count == 4 {
+            h = h.map { "\($0)\($0)" }.joined()
+        }
 
         guard (h.count == 6 || h.count == 8), let value = UInt64(h, radix: 16) else {
-            return NSColor.white.cgColor
+            return CGColor(red: 1, green: 1, blue: 1, alpha: 1)
         }
 
         if h.count == 8 {
