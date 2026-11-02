@@ -27,11 +27,17 @@ final class SettingsSheet: NSObject {
             backing: .buffered,
             defer: false
         )
+        window.isReleasedWhenClosed = false
         super.init()
         buildContent(sections: sections, footer: footer)
     }
 
     // MARK: - Layout
+
+    // legacyScreenSaver turns unsatisfiable constraints into a fatal module
+    // exception (AppKit would normally just break one). Every constraint that
+    // ties our content to a view sized by someone else (tab containers,
+    // window content view) is therefore optional (999).
 
     private func buildContent(sections: [SettingsSection], footer: String?) {
         let grids = sections.map { section -> NSView in
@@ -52,12 +58,12 @@ final class SettingsSheet: NSObject {
             for (section, grid) in zip(sections, grids) {
                 let item = NSTabViewItem(identifier: section.title)
                 item.label = section.title
-                let container = NSView()
+                let container = NSView(frame: NSRect(x: 0, y: 0, width: maxWidth + 40, height: maxHeight + 32))
                 container.addSubview(grid)
                 NSLayoutConstraint.activate([
-                    grid.topAnchor.constraint(equalTo: container.topAnchor, constant: 16),
-                    grid.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 20),
-                    grid.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor, constant: -20),
+                    grid.topAnchor.constraint(equalTo: container.topAnchor, constant: 16).optional,
+                    grid.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 20).optional,
+                    grid.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor, constant: -20).optional,
                 ])
                 item.view = container
                 tabs.addTabViewItem(item)
@@ -99,10 +105,10 @@ final class SettingsSheet: NSObject {
         let content = NSView()
         content.addSubview(stack)
         NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: content.topAnchor),
-            stack.bottomAnchor.constraint(equalTo: content.bottomAnchor),
-            stack.leadingAnchor.constraint(equalTo: content.leadingAnchor),
-            stack.trailingAnchor.constraint(equalTo: content.trailingAnchor),
+            stack.topAnchor.constraint(equalTo: content.topAnchor).optional,
+            stack.bottomAnchor.constraint(equalTo: content.bottomAnchor).optional,
+            stack.leadingAnchor.constraint(equalTo: content.leadingAnchor).optional,
+            stack.trailingAnchor.constraint(equalTo: content.trailingAnchor).optional,
         ])
         window.contentView = content
         window.setContentSize(content.fittingSize)
@@ -227,5 +233,13 @@ private final class ClosureTarget: NSObject {
 
     @objc func fire() {
         action()
+    }
+}
+
+private extension NSLayoutConstraint {
+    /// Same constraint at priority 999: AppKit may break it instead of failing.
+    var optional: NSLayoutConstraint {
+        priority = .init(999)
+        return self
     }
 }

@@ -121,8 +121,10 @@ open class SingleSceneSaverView: SaverHostView {
 
     private var scene: (any ScreensaverScene)?
 
+    /// A single tab: frame rate followed by the scene's own settings.
     open override var settingsSections: [SettingsSection] {
-        super.settingsSections + [type(of: self).descriptor.settingsSection]
+        let descriptor = type(of: self).descriptor
+        return [SettingsSection(title: descriptor.name, settings: [Self.frameRateSetting] + descriptor.settings)]
     }
 
     open override func didStart(now: CFTimeInterval) {

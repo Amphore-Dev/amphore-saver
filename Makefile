@@ -40,6 +40,9 @@ install: build
 		codesign --force -s - "$(SAVERS_DIR)/$$saver.saver"; \
 		echo "Installed $$saver.saver"; \
 	done
+	@# WallpaperAgent (System Settings list) caches bundles by path: relaunch
+	@# it so replaced savers show their new thumbnail and identifier
+	-killall WallpaperAgent 2>/dev/null || true
 
 remove:
 	-killall legacyScreenSaver 2>/dev/null || true
