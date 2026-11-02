@@ -1,0 +1,76 @@
+name: amphore-saver
+
+options:
+  bundleIdPrefix: com.amphore-dev
+  deploymentTarget:
+    macOS: "11.5"
+  createIntermediateGroups: true
+
+packages:
+  AmphoreKit:
+    path: .
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    DEVELOPMENT_TEAM: JTV45F2TPG
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: "-"
+    ENABLE_HARDENED_RUNTIME: YES
+    WRAPPER_EXTENSION: saver
+    GENERATE_INFOPLIST_FILE: YES
+    INFOPLIST_KEY_NSHumanReadableCopyright: "Copyright © 2026 Amphore Dev. MIT License."
+    SKIP_INSTALL: YES
+  configs:
+    Release:
+      ONLY_ACTIVE_ARCH: NO
+
+targetTemplates:
+  Saver:
+    type: bundle
+    platform: macOS
+    sources:
+      - path: Savers/${target_name}
+
+targets:
+  AmphoreSaver:
+    templates: [Saver]
+    settings:
+      PRODUCT_NAME: amphore-saver
+      PRODUCT_BUNDLE_IDENTIFIER: com.amphore-dev.amphore-saver
+      INFOPLIST_KEY_NSPrincipalClass: AmphoreSaverView
+    dependencies:
+      - package: AmphoreKit
+        products: [ScreensaverCore, KinogridaKit, ShadesKit, PsykalaKit]
+
+  Kinogrida:
+    templates: [Saver]
+    settings:
+      PRODUCT_NAME: Kinogrida
+      PRODUCT_BUNDLE_IDENTIFIER: com.amphore-dev.amphore-saver.kinogrida
+      INFOPLIST_KEY_NSPrincipalClass: KinogridaSaverView
+    dependencies:
+      - package: AmphoreKit
+        products: [ScreensaverCore, KinogridaKit]
+
+  Shades:
+    templates: [Saver]
+    settings:
+      PRODUCT_NAME: Shades
+      PRODUCT_BUNDLE_IDENTIFIER: com.amphore-dev.amphore-saver.shades
+      INFOPLIST_KEY_NSPrincipalClass: ShadesSaverView
+    dependencies:
+      - package: AmphoreKit
+        products: [ScreensaverCore, ShadesKit]
+
+  Psykala:
+    templates: [Saver]
+    settings:
+      PRODUCT_NAME: Psykala
+      PRODUCT_BUNDLE_IDENTIFIER: com.amphore-dev.amphore-saver.psykala
+      INFOPLIST_KEY_NSPrincipalClass: PsykalaSaverView
+    dependencies:
+      - package: AmphoreKit
+        products: [ScreensaverCore, PsykalaKit]
