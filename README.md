@@ -50,6 +50,8 @@ make remove                # uninstall
 make release               # sign (Developer ID), notarize and staple into dist/
 ```
 
+If System Settings shows a generic blue thumbnail or an outdated version after reinstalling, run `make refresh-settings` and reopen System Settings: macOS caches screensaver thumbnails and never invalidates them.
+
 `make release` needs a notarytool keychain profile, created once:
 
 ```bash

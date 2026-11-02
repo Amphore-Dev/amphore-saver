@@ -15,7 +15,7 @@ SAVER         ?= $(SAVERS)
 SIGN_ID       ?= Developer ID Application: Siméon Ferrara (JTV45F2TPG)
 NOTARY_PROFILE ?= amphore
 
-.PHONY: all project build install remove release clean
+.PHONY: all project build install remove release clean refresh-settings
 
 all: build
 
@@ -40,9 +40,17 @@ install: build
 		codesign --force -s - "$(SAVERS_DIR)/$$saver.saver"; \
 		echo "Installed $$saver.saver"; \
 	done
-	@# WallpaperAgent (System Settings list) caches bundles by path: relaunch
-	@# it so replaced savers show their new thumbnail and identifier
-	-killall WallpaperAgent 2>/dev/null || true
+	@$(MAKE) --no-print-directory refresh-settings
+
+# System Settings caches screensaver bundles (WallpaperAgent) and their
+# thumbnails (on disk, never invalidated): a saver first seen without a
+# valid thumbnail keeps the generic placeholder forever. Clear both.
+THUMBNAIL_CACHE = $(shell getconf DARWIN_USER_CACHE_DIR)com.apple.wallpaper.extension.legacy/com.apple.wallpaper.legacy.thumbnails
+
+refresh-settings:
+	@test -d "$(THUMBNAIL_CACHE)" && find "$(THUMBNAIL_CACHE)" -name '*.png' -delete || true
+	-@killall WallpaperLegacyExtension WallpaperAgent 2>/dev/null || true
+	@echo "System Settings caches cleared: reopen System Settings"
 
 remove:
 	-killall legacyScreenSaver 2>/dev/null || true
