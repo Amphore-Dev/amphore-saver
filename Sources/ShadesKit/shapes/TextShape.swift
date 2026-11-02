@@ -1,23 +1,27 @@
 import AppKit
 import CoreText
+import ScreensaverCore
 
 final class TextShadeItem: ShadeItem {
-    private static let formatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "HH:mm"
-        return f
-    }()
+    nonisolated(unsafe) private static var formatters: [String: DateFormatter] = [:]
 
     static nonisolated(unsafe) let customFont: CTFont? = {
-        guard let url = Bundle(for: ShadesView.self).url(forResource: "Remained", withExtension: "ttf") else { return nil }
+        guard let url = ResourceBundle.named("amphore-saver_ShadesKit", containing: TextShadeItem.self)?
+            .url(forResource: "Remained", withExtension: "ttf") else { return nil }
         CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
         guard let descriptors = CTFontManagerCreateFontDescriptorsFromURL(url as CFURL) as? [CTFontDescriptor],
               let descriptor = descriptors.first else { return nil }
         return CTFontCreateWithFontDescriptor(descriptor, 0, nil)
     }()
 
-    private var text: String {
-        Self.formatter.string(from: Date())
+    private func text(format: String) -> String {
+        let formatter = Self.formatters[format] ?? {
+            let f = DateFormatter()
+            f.dateFormat = format
+            Self.formatters[format] = f
+            return f
+        }()
+        return formatter.string(from: Date())
     }
 
     override func draw(_ ctx: CGContext, _ config: ShadeConfig, _ offset: ShadePoint) {
@@ -37,7 +41,7 @@ final class TextShadeItem: ShadeItem {
                 .font: font,
                 .foregroundColor: nsColor,
             ]
-            let str = text as NSString
+            let str = text(format: config.timeFormat) as NSString
             let size = str.size(withAttributes: attrs)
 
             let drawX = config.width / 2 + config.center.x

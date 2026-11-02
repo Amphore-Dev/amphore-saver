@@ -1,4 +1,5 @@
 import Foundation
+import ScreensaverCore
 import CoreGraphics
 
 // MARK: - Lenient JSON decoding
@@ -161,7 +162,18 @@ enum ArtworkService {
         return []
     }
 
-    static func fetchRandom(completion: @escaping ([ArtworkData]) -> Void) {
+    /// Artworks shipped in the package (`Resources/Artworks/*.psk`).
+    static func bundled() -> [ArtworkData] {
+        guard let bundle = ResourceBundle.named("amphore-saver_PsykalaKit", containing: BundleAnchor.self),
+              let urls = bundle.urls(forResourcesWithExtension: "psk", subdirectory: "Artworks")
+        else { return [] }
+        return urls
+            .compactMap { try? Data(contentsOf: $0) }
+            .flatMap { decodeArtworks(from: $0) }
+            .filter { !$0.layers.isEmpty }
+    }
+
+    static func fetchRandom(completion: @escaping @MainActor ([ArtworkData]) -> Void) {
         let session = URLSession(configuration: .ephemeral)
         session.dataTask(with: apiURL) { data, _, error in
             guard error == nil, let data = data else {
@@ -173,3 +185,5 @@ enum ArtworkService {
         }.resume()
     }
 }
+
+private final class BundleAnchor {}

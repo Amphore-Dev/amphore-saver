@@ -1,8 +1,48 @@
-import ScreenSaver
+import AppKit
+import ScreensaverCore
 
-// MARK: - ShadesView
+// MARK: - ShadesScene
 
-final class ShadesView: ScreenSaverView {
+public final class ShadesScene: ScreensaverScene {
+
+    // MARK: - Settings
+
+    public static let squares = Setting.toggle("shades.shape.square", "Squares", default: true)
+    public static let circles = Setting.toggle("shades.shape.circle", "Circles", default: true)
+    public static let spirals = Setting.toggle("shades.shape.spiral", "Spirals", default: true)
+    public static let triangles = Setting.toggle("shades.shape.triangle", "Triangles", default: true)
+    public static let clock = Setting.toggle("shades.shape.text", "Clock", default: true)
+    public static let clockFormat = Setting.choice(
+        "shades.clockFormat", "Clock format", default: 0, options: ["24h (HH:mm)", "12h (h:mm)"]
+    )
+    public static let startWithClock = Setting.toggle("shades.startWithClock", "Start with clock", default: true)
+    public static let regenInterval = Setting.slider(
+        "shades.regenInterval", "New scene every", default: 15, range: 5...120, step: 1, unit: .seconds
+    )
+    public static let maxShades = Setting.slider(
+        "shades.maxShades", "Max shades", default: 30, range: 3...60, step: 1
+    )
+    public static let drift = Setting.slider(
+        "shades.drift", "Drift amplitude", default: 15, range: 0...40, step: 1, unit: .percent
+    )
+    public static let fade = Setting.slider(
+        "shades.fade", "Scene fade", default: 0.5, range: 0.1...3, step: 0.1, unit: .seconds
+    )
+
+    public static let descriptor = SceneDescriptor(
+        id: "shades",
+        name: "Shades",
+        settings: [squares, circles, spirals, triangles, clock, clockFormat,
+                   startWithClock, regenInterval, maxShades, drift, fade],
+        make: { ShadesScene(context: $0) }
+    )
+
+    private var bounds: CGRect
+    private let shadeTypes: [ShadeType]
+    private let maxShadesNbr: Int
+    private let timeFormat: String
+    private let startsWithClock: Bool
+    private let driftRatio: CGFloat
 
     private var items: [ShadeItem] = []
     private var config: ShadeConfig!
@@ -17,55 +57,63 @@ final class ShadesView: ScreenSaverView {
     private var fadeStartOpacity: CGFloat = 0
     private var fadeStartTime: CFTimeInterval = 0
     private var isFading = true
-    private let fadeDuration: CFTimeInterval = 0.5
+    private let fadeDuration: CFTimeInterval
     private var pendingRegeneration = false
 
     // Auto-regeneration timer
     private var regenTimer: CFTimeInterval = 0
-    private let regenInterval: CFTimeInterval = 15
+    private let regenInterval: CFTimeInterval
 
     // MARK: - Init
 
-    override init?(frame: NSRect, isPreview: Bool) {
-        super.init(frame: frame, isPreview: isPreview)
-        animationTimeInterval = 1.0 / 60.0
-    }
+    public init(context: SceneContext) {
+        let s = context.settings
+        bounds = context.bounds
 
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) is not supported")
+        let toggles: [(ShadeType, Setting)] = [
+            (.square, Self.squares), (.circle, Self.circles), (.spiral, Self.spirals),
+            (.triangle, Self.triangles), (.text, Self.clock),
+        ]
+        let enabled = toggles.filter { s.bool($0.1) }.map(\.0)
+        shadeTypes = enabled.isEmpty ? ShadeType.allCases : enabled
+
+        maxShadesNbr = Int(s.double(Self.maxShades))
+        timeFormat = s.int(Self.clockFormat) == 1 ? "h:mm" : "HH:mm"
+        startsWithClock = s.bool(Self.startWithClock) && shadeTypes.contains(.text)
+        driftRatio = CGFloat(s.double(Self.drift) / 100)
+        regenInterval = s.double(Self.regenInterval)
+        fadeDuration = s.double(Self.fade)
     }
 
     // MARK: - Lifecycle
 
-    override func startAnimation() {
-        super.startAnimation()
-        time = CACurrentMediaTime()
+    public func start(now: CFTimeInterval) {
+        time = now
         fadeStartTime = time
         regenTimer = time
-        generateFirstScene()
+        if startsWithClock {
+            generateFirstScene()
+        } else {
+            generateRandomScene()
+        }
     }
 
-    override func stopAnimation() {
-        super.stopAnimation()
-        items.removeAll()
-    }
-
-    override func animateOneFrame() {
-        time = CACurrentMediaTime()
+    public func update(now: CFTimeInterval) {
+        time = now
         updateOffset()
         updateFade()
 
         if time - regenTimer > regenInterval && !isFading {
             triggerRegeneration()
         }
-
-        setNeedsDisplay(bounds)
     }
 
-    override func draw(_ rect: NSRect) {
-        guard let ctx = NSGraphicsContext.current?.cgContext else { return }
-        guard config != nil else { return }
+    public func draw(in ctx: CGContext) {
+        guard config != nil else {
+            ctx.setFillColor(NSColor.black.cgColor)
+            ctx.fill(bounds)
+            return
+        }
 
         // Clear to black
         ctx.setFillColor(NSColor.black.cgColor)
@@ -84,9 +132,6 @@ final class ShadesView: ScreenSaverView {
             ctx.fill(bounds)
         }
     }
-
-    override var hasConfigureSheet: Bool { false }
-    override var configureSheet: NSWindow? { nil }
 
     // MARK: - First generation (text "SHADES" with HOME_COLORS, like JS generate())
 
@@ -110,6 +155,7 @@ final class ShadesView: ScreenSaverView {
             colors: [forceColor],
             mainColor: forceColor,
             lineCap: .butt,
+            timeFormat: timeFormat,
             fillFilter: { _, _ in true },
             rotationFilter: { _, _ in false }
         )
@@ -151,7 +197,7 @@ final class ShadesView: ScreenSaverView {
     // MARK: - Config generation (matches JS genConfig)
 
     private func generateConfig() -> ShadeConfig {
-        let type = ShadeType.allCases[randInt(0, ShadeType.allCases.count - 1)]
+        let type = shadeTypes[randInt(0, shadeTypes.count - 1)]
 
         let nbrShades: Int
         let size: CGFloat
@@ -166,7 +212,7 @@ final class ShadesView: ScreenSaverView {
             nbrItemsY = 1
             spacing = 0
         } else {
-            nbrShades = randInt(3, MAX_SHADES_NBR)
+            nbrShades = randInt(3, maxShadesNbr)
             size = randFloat(10, 100)
             nbrItemsX = randInt(3, 20)
             nbrItemsY = randInt(3, 20)
@@ -196,6 +242,7 @@ final class ShadesView: ScreenSaverView {
             colors: colors,
             mainColor: mainColor,
             lineCap: getRandLineCap(),
+            timeFormat: timeFormat,
             fillFilter: getRandFilter(),
             rotationFilter: getRandFilter()
         )
@@ -248,7 +295,7 @@ final class ShadesView: ScreenSaverView {
 
     private func updateOffset() {
         let t = time
-        let amplitude = min(bounds.width, bounds.height) * 0.15
+        let amplitude = min(bounds.width, bounds.height) * driftRatio
         targetOffset = ShadePoint(
             x: sin(t * 0.08) * amplitude + cos(t * 0.05) * amplitude * 0.5,
             y: cos(t * 0.06) * amplitude + sin(t * 0.04) * amplitude * 0.5
@@ -281,8 +328,8 @@ final class ShadesView: ScreenSaverView {
 
     // MARK: - Resize
 
-    override func resize(withOldSuperviewSize oldSize: NSSize) {
-        super.resize(withOldSuperviewSize: oldSize)
+    public func resize(to bounds: CGRect) {
+        self.bounds = bounds
         config?.center = ShadePoint(x: bounds.width / 2, y: bounds.height / 2)
     }
 }

@@ -1,7 +1,29 @@
-import ScreenSaver
+import AppKit
+import ScreensaverCore
 
-@objc(Psykala_screensaverView)
-final class PsykalaView: ScreenSaverView {
+public final class PsykalaScene: ScreensaverScene {
+
+    // MARK: - Settings
+
+    public static let artworkDuration = Setting.slider(
+        "psykala.artworkDuration", "Artwork duration", default: 30, range: 5...300, step: 5, unit: .seconds
+    )
+    public static let offlineOnly = Setting.toggle(
+        "psykala.offlineOnly", "Offline only (bundled artworks)", default: false
+    )
+    public static let fade = Setting.slider(
+        "psykala.fade", "Artwork fade", default: 0.8, range: 0.1...3, step: 0.1, unit: .seconds
+    )
+
+    public static let descriptor = SceneDescriptor(
+        id: "psykala",
+        name: "Psykala",
+        settings: [artworkDuration, offlineOnly, fade],
+        make: { PsykalaScene(context: $0) }
+    )
+
+    private var bounds: CGRect
+    private let offline: Bool
 
     private var layers: [BaseLayer] = []
     private var time: CFTimeInterval = 0
@@ -13,33 +35,31 @@ final class PsykalaView: ScreenSaverView {
     private var fadeStartOpacity: CGFloat = 0
     private var fadeStartTime: CFTimeInterval = 0
     private var isFading = false
-    private let fadeDuration: CFTimeInterval = 0.8
+    private let fadeDuration: CFTimeInterval
     private var pendingRegeneration = false
 
     // Scene cycling
     private var regenTimer: CFTimeInterval = 0
-    private let regenInterval: CFTimeInterval = 30
+    private let regenInterval: CFTimeInterval
 
     // Artwork queue
     private var apiQueue: [ArtworkData] = []
+    private var isFetching = false
 
     // MARK: - Init
 
-    override init?(frame: NSRect, isPreview: Bool) {
-        super.init(frame: frame, isPreview: isPreview)
-        animationTimeInterval = 1.0 / 60.0
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) is not supported")
+    public init(context: SceneContext) {
+        let s = context.settings
+        bounds = context.bounds
+        offline = s.bool(Self.offlineOnly)
+        regenInterval = s.double(Self.artworkDuration)
+        fadeDuration = s.double(Self.fade)
     }
 
     // MARK: - Lifecycle
 
-    override func startAnimation() {
-        super.startAnimation()
-        time = CACurrentMediaTime()
+    public func start(now: CFTimeInterval) {
+        time = now
         prevTime = time
         regenTimer = time
         if apiQueue.isEmpty {
@@ -49,14 +69,9 @@ final class PsykalaView: ScreenSaverView {
         }
     }
 
-    override func stopAnimation() {
-        super.stopAnimation()
-        layers.removeAll()
-    }
-
-    override func animateOneFrame() {
+    public func update(now: CFTimeInterval) {
         prevTime = time
-        time = CACurrentMediaTime()
+        time = now
         let dt = time - prevTime
 
         for layer in layers {
@@ -68,13 +83,13 @@ final class PsykalaView: ScreenSaverView {
         if !layers.isEmpty && time - regenTimer > regenInterval && !isFading {
             triggerRegeneration()
         }
-
-        setNeedsDisplay(bounds)
     }
 
-    override func draw(_ rect: NSRect) {
-        guard let ctx = NSGraphicsContext.current?.cgContext else { return }
+    public func resize(to bounds: CGRect) {
+        self.bounds = bounds
+    }
 
+    public func draw(in ctx: CGContext) {
         ctx.setFillColor(NSColor.black.cgColor)
         ctx.fill(bounds)
 
@@ -89,9 +104,6 @@ final class PsykalaView: ScreenSaverView {
             ctx.fill(bounds)
         }
     }
-
-    override var hasConfigureSheet: Bool { false }
-    override var configureSheet: NSWindow? { nil }
 
     // MARK: - Artwork loading
 
@@ -146,11 +158,25 @@ final class PsykalaView: ScreenSaverView {
 
     // MARK: - API
 
+    /// Refills the queue from the API, falling back to the bundled
+    /// artworks when offline (or when the offline-only setting is on).
     private func fetchArtworks() {
-        ArtworkService.fetchRandom { [weak self] artworks in
-            guard let self = self, !artworks.isEmpty else { return }
-            self.apiQueue = artworks.shuffled()
-            self.loadNextArtwork()
+        guard !offline else {
+            enqueue(ArtworkService.bundled())
+            return
         }
+        guard !isFetching else { return }
+        isFetching = true
+        ArtworkService.fetchRandom { [weak self] artworks in
+            guard let self else { return }
+            self.isFetching = false
+            self.enqueue(artworks.isEmpty ? ArtworkService.bundled() : artworks)
+        }
+    }
+
+    private func enqueue(_ artworks: [ArtworkData]) {
+        guard !artworks.isEmpty else { return }
+        apiQueue = artworks.shuffled()
+        loadNextArtwork()
     }
 }

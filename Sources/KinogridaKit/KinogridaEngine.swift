@@ -1,17 +1,20 @@
 import AppKit
 
-// ── Constantes — mode normal ──────────────────────────────────
-private let kCellPixelSize: CGFloat = 100
-private let kAnimSpeed:     CGFloat = 10_000     // ms par cycle d'animation
-private let kFillPercent:   CGFloat = 0.20
-private let kChangeEvery:   CGFloat = 2 * 60 * 1_000  // 2 min
-private let kFadeDuration:  CGFloat = 1_200
-
 // ── Constantes — mode preview (thumbnail System Settings) ─────
 private let kPreviewCellSize:  CGFloat = 10      // cellules plus petites → grille visible
 private let kPreviewSpeed:     CGFloat = 3_000   // animation plus rapide
 private let kPreviewChangeEvery: CGFloat = 10_000 // palette change toutes les 10 s
 private let kPreviewFadeDuration: CGFloat = 600
+
+/// Réglages utilisateur (mode normal). Durées en ms.
+struct KinogridaOptions {
+    var paletteIndex: Int?            = nil       // nil → palette aléatoire à chaque changement
+    var cellPixelSize: CGFloat        = 100
+    var animSpeed: CGFloat            = 10_000    // ms par cycle d'animation
+    var fillPercent: CGFloat          = 0.20
+    var changeEvery: CGFloat          = 2 * 60 * 1_000  // 2 min
+    var fadeDuration: CGFloat         = 1_200
+}
 
 private enum FadeState { case normal, fadingOut, fadingIn }
 
@@ -27,17 +30,23 @@ final class KinogridaEngine {
     private var fadeState: FadeState     = .normal
 
     private let isPreview: Bool
+    private let options: KinogridaOptions
 
     // ── Paramètres selon le mode ───────────────────────────────
-    private var cellPixelSize:  CGFloat { isPreview ? kPreviewCellSize  : kCellPixelSize  }
-    private var animSpeed:      CGFloat { isPreview ? kPreviewSpeed      : kAnimSpeed      }
-    private var changeEvery:    CGFloat { isPreview ? kPreviewChangeEvery: kChangeEvery    }
-    private var fadeDuration:   CGFloat { isPreview ? kPreviewFadeDuration: kFadeDuration  }
+    private var cellPixelSize:  CGFloat { isPreview ? kPreviewCellSize    : options.cellPixelSize }
+    private var animSpeed:      CGFloat { isPreview ? kPreviewSpeed       : options.animSpeed     }
+    private var changeEvery:    CGFloat { isPreview ? kPreviewChangeEvery : options.changeEvery   }
+    private var fadeDuration:   CGFloat { isPreview ? kPreviewFadeDuration: options.fadeDuration  }
+
+    private func nextPalette() -> [NSColor] {
+        options.paletteIndex.map(KGColors.paletteAtIndex) ?? KGColors.randomPalette()
+    }
 
     // ── Init ──────────────────────────────────────────────────
 
-    init(bounds: NSRect, isPreview: Bool = false) {
+    init(bounds: NSRect, isPreview: Bool = false, options: KinogridaOptions = KinogridaOptions()) {
         self.isPreview = isPreview
+        self.options   = options
         config = KGGridConfig.defaultConfig()
         grid   = KGGrid(rows: 1, cols: 1)
         rebuild(for: bounds)
@@ -60,7 +69,7 @@ final class KinogridaEngine {
         config.nbrColumns = max(1, Int(floor(bounds.size.width  / cellPixelSize)))
         config.nbrRows    = max(1, Int(floor(bounds.size.height / cellPixelSize)))
         config.speed      = animSpeed
-        config.colors     = KGColors.randomPalette()
+        config.colors     = nextPalette()
         config.updateForCanvasSize(bounds.size)
 
         config.showGrid        = false
@@ -75,7 +84,7 @@ final class KinogridaEngine {
     }
 
     private func rebuild() {
-        config.colors = KGColors.randomPalette()
+        config.colors = nextPalette()
         shapes.removeAll()
         grid = KGGrid(rows: config.nbrRows, cols: config.nbrColumns)
         fillGridRandomly()
@@ -84,7 +93,7 @@ final class KinogridaEngine {
     // ── Grid fill ─────────────────────────────────────────────
 
     private func fillGridRandomly() {
-        let maxCells    = max(1, Int(floor(CGFloat(config.nbrColumns * config.nbrRows) * kFillPercent)))
+        let maxCells    = max(1, Int(floor(CGFloat(config.nbrColumns * config.nbrRows) * options.fillPercent)))
         var added       = 0
         var attempts    = 0
 

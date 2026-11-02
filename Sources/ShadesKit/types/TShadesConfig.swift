@@ -16,6 +16,7 @@ struct ShadeConfig {
     var colors: [ShadeColor]
     var mainColor: ShadeColor
     var lineCap: CGLineCap
+    var timeFormat: String
     var fillFilter: (ShadeColor, ShadeColor) -> Bool
     var rotationFilter: (ShadeColor, ShadeColor) -> Bool
 }
