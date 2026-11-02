@@ -45,6 +45,9 @@ final class AmphoreSaverView: SaverHostView {
     // MARK: - State
 
     private var scene: (any ScreensaverScene)?
+    /// One instance per scene for the whole session, resumed when picked
+    /// again (keeps Shades' clock intro and Psykala's fetch to the first time).
+    private var instances: [String: any ScreensaverScene] = [:]
     private var slot = -1
     private var isRunning = false
     private var overlayAlpha: CGFloat = 1
@@ -73,6 +76,7 @@ final class AmphoreSaverView: SaverHostView {
         if isRunning { Self.runningViews -= 1 }
         isRunning = false
         scene = nil
+        instances.removeAll()
         slot = -1
     }
 
@@ -83,10 +87,17 @@ final class AmphoreSaverView: SaverHostView {
 
         if current != slot || scene == nil {
             slot = current
-            let context = SceneContext(bounds: bounds, isPreview: isPreview, settings: settings)
-            let next = descriptor(for: current).make(context)
-            next.start(now: now)
-            scene = next
+            let descriptor = descriptor(for: current)
+            if let paused = instances[descriptor.id] {
+                paused.resume(now: now)
+                scene = paused
+            } else {
+                let context = SceneContext(bounds: bounds, isPreview: isPreview, settings: settings)
+                let next = descriptor.make(context)
+                next.start(now: now)
+                instances[descriptor.id] = next
+                scene = next
+            }
         }
         scene?.update(now: now)
 
@@ -115,12 +126,15 @@ final class AmphoreSaverView: SaverHostView {
     }
 
     override func boundsDidChange() {
-        scene?.resize(to: bounds)
+        for instance in instances.values {
+            instance.resize(to: bounds)
+        }
     }
 
     override func settingsDidChange() {
         guard isRunning else { return }
         scene = nil
+        instances.removeAll()
         tick(now: CACurrentMediaTime())
     }
 

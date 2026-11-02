@@ -64,6 +64,10 @@ public final class KinogridaScene: ScreensaverScene {
         lastFrameTime = now
     }
 
+    public func resume(now: CFTimeInterval) {
+        lastFrameTime = now
+    }
+
     public func update(now: CFTimeInterval) {
         let deltaTime: CGFloat = lastFrameTime > 0
             ? CGFloat((now - lastFrameTime) * 1000)

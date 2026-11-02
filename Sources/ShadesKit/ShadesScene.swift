@@ -98,6 +98,14 @@ public final class ShadesScene: ScreensaverScene {
         }
     }
 
+    /// The clock intro only plays on first start: coming back shows a new
+    /// random composition.
+    public func resume(now: CFTimeInterval) {
+        time = now
+        pendingRegeneration = false
+        generateRandomScene()
+    }
+
     public func update(now: CFTimeInterval) {
         time = now
         updateOffset()

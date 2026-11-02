@@ -7,7 +7,11 @@ import AppKit
 /// context covering `bounds`. They paint their own background.
 @MainActor
 public protocol ScreensaverScene: AnyObject {
+    /// First appearance.
     func start(now: CFTimeInterval)
+    /// Back on screen after being paused (hosts keep scenes alive between
+    /// appearances). Should reset time baselines and show something fresh.
+    func resume(now: CFTimeInterval)
     func update(now: CFTimeInterval)
     func draw(in ctx: CGContext)
     func resize(to bounds: CGRect)

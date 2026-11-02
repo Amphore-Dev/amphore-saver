@@ -69,6 +69,15 @@ public final class PsykalaScene: ScreensaverScene {
         }
     }
 
+    /// Keeps the artwork queue: no new API call when coming back.
+    public func resume(now: CFTimeInterval) {
+        time = now
+        prevTime = now
+        regenTimer = now
+        pendingRegeneration = false
+        loadNextArtwork()
+    }
+
     public func update(now: CFTimeInterval) {
         prevTime = time
         time = now
