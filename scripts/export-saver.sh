@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Exports one saver as a standalone Xcode project (ScreensaverCore + its Kit
 # + its wrapper), used to sync the MacOS/ folder of the per-saver
-# repositories (kinogrida-screensaver, Shades-macos-screensaver,
+# repositories (kinogrida-screensaver, Shades-screensaver,
 # psykala-screensaver).
 #
 #   scripts/export-saver.sh <Kinogrida|Shades|Psykala> <destination>

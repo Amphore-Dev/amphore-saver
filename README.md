@@ -80,7 +80,7 @@ Savers/
 
 A scene implements `ScreensaverScene` (`start`, `update`, `draw`, `resize`) and exposes a `SceneDescriptor` (id, name, settings, factory). Adding a new animation means adding a Kit target, a descriptor, and listing it in `AmphoreSaverView.catalog`.
 
-The `MacOS/` folders of [kinogrida-screensaver](https://github.com/Amphore-Dev/kinogrida-screensaver), [Shades-macos-screensaver](https://github.com/Amphore-Dev/Shades-macos-screensaver) and [psykala-screensaver](https://github.com/Shimon42/psykala-screensaver) (which also host the Windows ports) are generated with `scripts/export-saver.sh <Name> <destination>`: a standalone project with ScreensaverCore, the Kit and the wrapper.
+The `MacOS/` folders of [kinogrida-screensaver](https://github.com/Amphore-Dev/kinogrida-screensaver), [Shades-screensaver](https://github.com/Amphore-Dev/Shades-screensaver) and [psykala-screensaver](https://github.com/Shimon42/psykala-screensaver) (which also host the Windows ports) are generated with `scripts/export-saver.sh <Name> <destination>`: a standalone project with ScreensaverCore, the Kit and the wrapper.
 
 The Kinogrida, Shades and Psykala histories were imported with `git subtree`, so `git log --follow` works on the moved files.
 
